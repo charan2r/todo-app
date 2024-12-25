@@ -1,196 +1,298 @@
-import React, { useState } from 'react';
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-unused-vars */
+import React, { useState, useEffect } from 'react';
 
-const ToDo = () => {
-  // State to manage tasks, form inputs, and search query
+function ToDo() {
   const [tasks, setTasks] = useState([]);
-  const [form, setForm] = useState({
-    id: "",
-    title: "",
-    description: "",
-    dueDate: "",
-    priority: "Low",
-  });
-  const [searchQuery, setSearchQuery] = useState("");
+  const [taskId, setTaskId] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [priority, setPriority] = useState('');
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [expirationTimes, setExpirationTimes] = useState({});
 
-  // Handle form input changes
-  const handleChange = (e) => {
-    const { id, value } = e.target;
-    setForm((prev) => ({ ...prev, [id]: value }));
-  };
-
-  // Add or update a task
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (form.title.trim()) {
-      if (form.id) {
-        // Update task
-        setTasks((prev) =>
-          prev.map((task) => (task.id === form.id ? { ...form } : task))
-        );
-      } else {
-        // Add new task
-        setTasks((prev) => [
-          ...prev,
-          { ...form, id: Date.now().toString() },
-        ]);
+  useEffect(() => {
+    fetchTasks();
+    if (confirmationMessage) {
+        setShowToast(true);
+        const timer = setTimeout(() => {
+          setShowToast(false);
+        }, 3000); 
+  
+        return () => clearTimeout(timer); 
       }
-      resetForm();
-    }
+  }, [confirmationMessage]);
+
+  // API to fetch tasks
+  const fetchTasks = () => {
+    fetch('http://localhost:5000/tasks')
+      .then(response => response.json())
+      .then(data => {
+        setTasks(data.tasks);
+        if (data.upcomingTasks && data.upcomingTasks.length > 0) {
+          notifyUpcomingTasks(data.upcomingTasks);
+        }
+      })
+      .catch(error => console.error('Error fetching tasks:', error));
   };
 
-  // Reset form
-  const resetForm = () => {
-    setForm({
-      id: "",
-      title: "",
-      description: "",
-      dueDate: "",
-      priority: "Low",
+  // API to add tasks
+  const addTask = () => {
+    fetch('http://localhost:5000/addTask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, description, dueDate, priority }),
+    })
+      .then(response => response.json())
+      .then(data => {
+        const newTaskId = data.tasks[data.tasks.length - 1].id;
+        const expirationDateTime = prompt(
+          'Set an expiration date and time for this task (YYYY-MM-DDTHH:MM format):'
+        );
+        if (expirationDateTime) {
+          saveExpiration(newTaskId, expirationDateTime);
+        }
+        setTasks(data.tasks);
+        setTitle('');
+        setDescription('');
+        setDueDate('');
+        setPriority('');
+        setTaskId('');
+        setConfirmationMessage('Task added successfully');
+      });
+  };
+
+  const renderTasks = () => {
+    const now = new Date();
+    return tasks.map((task) => {
+      const expirationDateTimeStr = expirationTimes[task.id];
+      const expirationDateTime = expirationDateTimeStr
+        ? new Date(expirationDateTimeStr)
+        : null;
+      const isExpired = expirationDateTime && expirationDateTime < now;
+      return (
+        <div
+          className={`bg-white p-4 rounded shadow mb-4 ${
+            isExpired ? 'bg-gray-400' : ''
+          }`}
+          key={task.id}
+        >
+          <h2 className="text-xl font-bold mb-2">Title: {task.title}</h2>
+          <p className="text-base text-gray-600 font-mono font-semibold">
+            Description: {task.description}
+          </p>
+          <p className="text-base text-gray-600 font-mono font-semibold">
+            Due Date: {task.due_date}
+          </p>
+          <p className="text-base text-gray-600 mb-5 font-mono font-semibold">
+            Priority: {task.priority}
+          </p>
+          {expirationDateTime && (
+            <p className="text-base text-red-500 mb-5 font-mono font-semibold">
+              Expires On: {expirationDateTime.toLocaleString()}
+            </p>
+          )}
+          {isExpired ? (
+            <span className="bg-red-500 text-white px-2 py-1 rounded mr-2">
+              Expired
+            </span>
+          ) : (
+            ''
+          )}
+          <button
+            className="bg-red-500 text-white px-2 py-1 rounded mr-2"
+            onClick={() => editTask(task.id)}
+          >
+            Edit
+          </button>
+          <button
+            className="bg-red-500 text-white px-2 py-1 rounded mb-2"
+            onClick={() => deleteTask(task.id)}
+          >
+            Delete
+          </button>
+          {task.completed ? (
+            <span className="bg-green-500 text-white px-2 py-1 rounded ml-2">
+              Completed
+            </span>
+          ) : (
+            <button
+              className="bg-green-500 text-white px-2 py-1 rounded ml-2"
+              onClick={() => markCompleted(task.id)}
+            >
+              Mark as Completed
+            </button>
+          )}
+        </div>
+      );
     });
   };
 
-  // Delete a task
+  // API to delete tasks
   const deleteTask = (id) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id));
+    fetch('http://localhost:5000/deleteTask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setTasks(data.tasks);
+        setConfirmationMessage('Task deleted successfully!');
+      })
+      .catch((error) => {
+        console.error('Error deleting task:', error);
+        setConfirmationMessage('Failed to delete task.');
+      });
   };
 
-  // Edit a task
-  const editTask = (task) => {
-    setForm(task);
+  // API to edit tasks
+  const editTask = (id) => {
+    fetch(`http://localhost:5000/task/${id}`)
+      .then((response) => response.json())
+      .then((task) => {
+        setTaskId(task.id);
+        setTitle(task.title);
+        setDescription(task.description);
+        setDueDate(task.due_date);
+        setPriority(task.priority);
+      })
+      .catch((error) => console.error('Error fetching task:', error));
   };
 
-  // Search functionality
-  const filteredTasks = tasks.filter(
-    (task) =>
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // API to update tasks
+  const updateTask = () => {
+    fetch('http://localhost:5000/updateTask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ taskId, title, description, dueDate, priority }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setTasks(data.tasks);
+        setTitle('');
+        setDescription('');
+        setDueDate('');
+        setPriority('');
+        setTaskId('');
+        setConfirmationMessage('Task updated successfully!');
+      });
+  };
+
+  // API to mark tasks as completed
+  const markCompleted = (id) => {
+    fetch('http://localhost:5000/markCompleted', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setTasks(data.tasks);
+        setConfirmationMessage('Task is completed!');
+      })
+      .catch((error) => console.error('Error marking task as completed:', error));
+  };
+
+  const saveExpiration = (taskId, expirationDateTime) => {
+    const updatedExpirationTimes = { ...expirationTimes, [taskId]: expirationDateTime };
+    setExpirationTimes(updatedExpirationTimes);
+    localStorage.setItem('expirationTimes', JSON.stringify(updatedExpirationTimes));
+  };
+
+  const notifyUpcomingTasks = (upcomingTasks) => {
+    upcomingTasks.forEach((task) => {
+      setConfirmationMessage(`Reminder: Task "${task.title}" is due soon!`);
+    });
+  };
+
+  // API to search tasks
+  const searchTasks = (query) => {
+    fetch(`http://localhost:5000/searchTasks?query=${encodeURIComponent(query)}`)
+      .then((response) => response.json())
+      .then((data) => {
+        setTasks(data.tasks);
+      })
+      .catch((error) => console.error('Error searching tasks:', error));
+  };
 
   return (
-    <div
-      className="flex items-center justify-center min-h-screen bg-cover bg-center"
-      style={{
-        backgroundImage:
-          "url('https://images.unsplash.com/photo-1493809842364-78817add7ffb')",
-      }}
-    >
-      <div className="w-full max-w-md mx-auto">
-        <header className="bg-blue-500 text-white p-6 mb-5 rounded-lg shadow-lg mt-5">
-          <h1 className="text-4xl font-bold text-center">ToDo</h1>
-        </header>
+    <div className="min-h-screen bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">Todo App</h1>
+        {showToast && (
+          <div
+            className={`fixed top-0 right-0 m-4 p-2 rounded shadow-lg ${
+              confirmationMessage.includes('success')
+                ? 'bg-green-500'
+                : confirmationMessage.includes('error')
+                ? 'bg-red-500'
+                : 'bg-yellow-500'
+            }`}
+          >
+            {confirmationMessage}
+          </div>
+        )}
+
         <form
-          className="bg-white shadow-lg rounded-lg px-8 pt-6 pb-8 mb-4"
-          onSubmit={handleSubmit}
+          onSubmit={(e) => {
+            e.preventDefault();
+            taskId ? updateTask() : addTask();
+          }}
+          className="space-y-4"
         >
-          <input type="hidden" id="task-id" value={form.id} />
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center">
-              <i className="fa fa-tasks mr-2"></i>Title
-            </label>
-            <input
-              type="text"
-              id="title"
-              value={form.title}
-              onChange={handleChange}
-              className="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:border-blue-500 transition duration-200 ease-in-out"
-              required
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center">
-              <i className="fa fa-info-circle mr-2"></i>Description
-            </label>
-            <textarea
-              id="description"
-              value={form.description}
-              onChange={handleChange}
-              className="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:border-blue-500 transition duration-200 ease-in-out"
-              rows="4"
-            ></textarea>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center">
-              <i className="fa fa-clock mr-2"></i>Due Date
-            </label>
-            <input
-              type="date"
-              id="dueDate"
-              value={form.dueDate}
-              onChange={handleChange}
-              className="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:border-blue-500 transition duration-200 ease-in-out"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center">
-              <i className="fa fa-bolt mr-2"></i>Priority
-            </label>
-            <select
-              id="priority"
-              value={form.priority}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded"
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-          <div className="flex justify-center pt-5 mb-5">
-            <button
-              id="submit-btn"
-              className="bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
-              type="submit"
-            >
-              {form.id ? "Update Task" : "Add Task"}
-            </button>
-          </div>
-          <div className="mb-4">
-            <label className="block text-gray-700 text-sm font-bold mb-2 flex items-center">
-              <i className="fa fa-search mr-2"></i>Search
-            </label>
-            <input
-              type="text"
-              id="search-query"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="shadow appearance-none border rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:border-blue-500 transition duration-200 ease-in-out"
-            />
-          </div>
+          <input
+            type="text"
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Title"
+            required
+            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+          />
+          <textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Description"
+            required
+            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+          />
+          <input
+            type="datetime-local"
+            id="due-date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            placeholder="Date"
+            required
+            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+          />
+          <select
+            id="priority"
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            required
+            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+          >
+            <option value="">Priority</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+          <button
+            type="submit"
+            className="w-full p-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+          >
+            {taskId ? 'Update Task' : 'Add Task'}
+          </button>
         </form>
-        <div id="task-list" className="mt-10">
-          {filteredTasks.map((task) => (
-            <div
-              key={task.id}
-              className="bg-white shadow-md rounded-lg p-4 mb-4 flex justify-between items-center"
-            >
-              <div>
-                <h3 className="font-bold">{task.title}</h3>
-                <p className="text-sm text-gray-600">{task.description}</p>
-                <p className="text-sm text-gray-500">
-                  Due: {task.dueDate || "No due date"} | Priority:{" "}
-                  {task.priority}
-                </p>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  className="text-blue-500 hover:text-blue-700"
-                  onClick={() => editTask(task)}
-                >
-                  <i className="fas fa-edit"></i>
-                </button>
-                <button
-                  className="text-red-500 hover:text-red-700"
-                  onClick={() => deleteTask(task.id)}
-                >
-                  <i className="fas fa-trash"></i>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+
+        <div className="mt-6">{renderTasks()}</div>
       </div>
     </div>
   );
-};
+}
 
 export default ToDo;

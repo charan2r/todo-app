@@ -2,7 +2,7 @@ import React from "react";
 
 const Welcome = () => {
   return (
-    <div className="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div className="bg-gradient-to-r from-purple-500 via-indigo-600 to-blue-500 flex items-center justify-center min-h-screen">
       <div className="text-center">
         <h1
           className="text-5xl font-bold mb-8 text-white"
