@@ -219,78 +219,63 @@ function ToDo() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-r from-purple-500 to-indigo-600 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-lg w-96">
-        <h1 className="text-3xl font-bold mb-6 text-center text-indigo-700">Todo App</h1>
-        {showToast && (
-          <div
-            className={`fixed top-0 right-0 m-4 p-2 rounded shadow-lg ${
-              confirmationMessage.includes('success')
-                ? 'bg-green-500'
-                : confirmationMessage.includes('error')
-                ? 'bg-red-500'
-                : 'bg-yellow-500'
-            }`}
-          >
-            {confirmationMessage}
-          </div>
-        )}
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            taskId ? updateTask() : addTask();
-          }}
-          className="space-y-4"
-        >
+    <div className="min-h-screen p-4" style={{
+      backgroundImage: 'url("https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?auto=format&fit=crop&q=80")',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed'
+    }}>
+      <div className="max-w-2xl mx-auto bg-white/90 p-4 rounded-lg shadow-lg backdrop-blur-sm mt-20">
+        <h1 className="text-2xl font-bold mb-4 text-center text-gray-800">Todo List</h1>
+        <div className="mb-4 space-y-2">
           <input
             type="text"
-            id="title"
+            placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title"
-            required
-            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+            className="w-full p-1.5 border rounded text-sm"
           />
           <textarea
-            id="description"
+            placeholder="Description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description"
-            required
-            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
+            className="w-full p-1.5 border rounded text-sm"
+            rows="2"
           />
-          <input
-            type="datetime-local"
-            id="due-date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            placeholder="Date"
-            required
-            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
-          />
-          <select
-            id="priority"
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            required
-            className="w-full p-3 border border-gray-300 rounded-md shadow-sm"
-          >
-            <option value="">Priority</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="flex-1 p-1.5 border rounded text-sm"
+            />
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="flex-1 p-1.5 border rounded text-sm"
+            >
+              <option value="">Priority</option>
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
           <button
-            type="submit"
-            className="w-full p-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+            className="w-full bg-blue-500 text-white p-1.5 rounded hover:bg-blue-600 transition text-sm"
+            onClick={taskId ? updateTask : addTask}
           >
             {taskId ? 'Update Task' : 'Add Task'}
           </button>
-        </form>
-
-        <div className="mt-6">{renderTasks()}</div>
+        </div>
+        <div className="space-y-3">
+          {renderTasks()}
+        </div>
       </div>
+      {showToast && (
+        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg text-sm">
+          {confirmationMessage}
+        </div>
+      )}
     </div>
   );
 }
